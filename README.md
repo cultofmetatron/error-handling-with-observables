@@ -116,7 +116,8 @@ In order to run only delays when an error occurs, we start with Observable.just(
 
 ```
 
-Observable.prototype.concatAll() flattens this into an Observable of results. With this returned to catch, on an error, the Observable will fall back to recalling the apiCall function similarly to the promise based version.
+**Observable.prototype.concatAll()** flattens this into an Observable of results. With this returned to catch, on an error, the Observable will fall back to recalling the apiCall function similarly to the promise based version.
 
+Observables handle a much wider array of situations than promises. There are consequently, more ways in which we may need to aggregate and work on errors.
 
-Lets say apiCall is a wrapper around a websocket event. calling it with some arguemnt returns an observable for some event that is called multiple times. This could be a socket.io event or a mouse movement with some effect applied.
+Lets say apiCall is a wrapper around a websocket event. calling it with some argument returns an observable for some event that is called multiple times. This could be a socket.io event or a mouse movement with some effect applied.
