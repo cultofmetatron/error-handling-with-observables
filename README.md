@@ -118,6 +118,19 @@ In order to run only delays when an error occurs, we start with Observable.just(
 
 **Observable.prototype.concatAll()** flattens this into an Observable of results. With this returned to catch, on an error, the Observable will fall back to recalling the apiCall function similarly to the promise based version.
 
+### Retrying sequences
+
 Observables handle a much wider array of situations than promises. There are consequently, more ways in which we may need to aggregate and work on errors.
 
-Lets say apiCall is a wrapper around a websocket event. calling it with some argument returns an observable for some event that is called multiple times. This could be a socket.io event or a mouse movement with some effect applied.
+By default, an error interrupts the original observable. Catch handles recovery by switching the source stream to a new Observable. There will be situations where we simply want to recover from errors by skipping the erroneous value and going to the next value in the observable sequence.
+
+```javascript
+let rx = require('rx');
+rx.Observable.range(0, 1000)
+.map((val) => (val % 2 === 0) ?
+  Observable.Just(val)
+
+
+
+
+```
