@@ -124,13 +124,42 @@ Observables handle a much wider array of situations than promises. There are con
 
 By default, an error interrupts the original observable. Catch handles recovery by switching the source stream to a new Observable. There will be situations where we simply want to recover from errors by skipping the erroneous value and going to the next value in the observable sequence.
 
+In this contrived example, an observable sequence of numbers from 0 to 1000 is run. We map over it; throwing an error if the value is not even. The retry() call means that we ignore the error and continue next
+value in the sequence.
+
 ```javascript
+
 let rx = require('rx');
-rx.Observable.range(0, 1000)
-.map((val) => (val % 2 === 0) ?
-  Observable.Just(val)
+let evens = rx.Observable.range(0, 1000)
+  .map((val) => (val % 2 === 0) ?
+    rx.Observable.just(val) :
+    rx.Observable.throw(new Error('not even')))
+  .retry()
+  .concatAll()
 
-
-
+evens.subscribe(onVal, onError);
 
 ```
+
+Now lets try something a bit more realistic. say a long polled connection to
+get a series of tweets. More importantly, we want to serially retry every 2000 seconds and
+ignore errors.
+
+
+```javascript
+
+let rx = require('rx');
+let tweetStream = Observable.interval(2000)
+  .map(() => getLatestTweets())
+  .concatAll()
+  .retry()
+  .scan((tweet) => {
+    tweets.push(tweet);
+    return tweets;
+  }, []);
+
+tweetStream.subscribe((tweets) => pushToView(tweets))
+
+```
+In very little code, we've created code that calls an api repeatedly every 2 seconds. If it errors,
+it simply retries again eventually building up a list of tweets like you'd find in flux or redux.
