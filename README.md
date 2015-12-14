@@ -31,7 +31,9 @@ apiCall(data)
   .then((data) => something(data));
 
 ```
-If apiCall fails, it can recover by making a second attempt. There's a hidden advantage to this approach as well; one that improves on the original try catch semantics. The Promise is composable!
+If apiCall fails, it can recover by making a second attempt. There's a hidden advantage to this approach as well; one that improves on the original try catch semantics.
+
+The Promise is **composable**!
 
 The function catcher, takes a set of timeouts and a function that returns a promise. It then returns a function that calls the argument function such that for each element in timeouts, it will
 retry repeatedly after a delay finally letting the error through when all retries are exhausted.
@@ -44,8 +46,11 @@ let catcher = function(timeouts, fn) {
     let args = Array.prototype.slice.call(arguments);
     return reduce(timeouts,
       (memo, timeout) => memo
-        /* promise.resolve() to run the delay before calling
-         the function a second time */
+        /*
+         promise.resolve() to run the delay
+         before calling the function a second
+         time
+        */
         .catch((err) => Promise
           .resolve(null)
           .delay(timeout * 1000) //convert seconds to milisec
@@ -60,3 +65,58 @@ catcher([1, 1, 2, 3, 5], apiCall)(data)
   .catch(handleError);
 
 ```
+
+Plenty of things can be wrapped by Promises such as http calls, fileIO etc. Unfortunately, Promises aren't for everything.  Asynchronous functions that call their callback repeatedly cannot be encapsulated by a Promise. A Promise resolves or rejects once and cannot change state after that.
+
+Repeated calls had to be handled using less composable means of asynchronous event management such as basic node callbacks style or event emitters.
+
+### Promises are one-shot observables
+
+Where a Promise encapulates the lifcycle of a single asynchronous event, An Observable represents a sequence of values that do not yet exist. It helps to think of it as an array of values being pulled from the future.
+
+Rx has some great features for composing Observables. lets say that apiCall now returns an observables.
+
+For now, lets keep it idiomatic to the promise based version.
+
+```javascript
+let rx = require('rx');
+let { reduce } = require('lodash')
+//fn() is assumed to return an Observable
+let catcher = functon(timeouts, fn) {
+  return function() {
+    let args = Array.prototype.slice.call(arguments);
+    return reduce(timeouts,
+      (observable, timeout) => observable
+        .catch((err) => rx.Observable
+            .just(null)
+            .delay(timeout * 1000)
+            .map(() => fn.apply(this, args))
+            .concatAll())
+      fn.apply(this, args))
+    )
+  }
+}
+
+catcher([1, 1, 2, 3, 5, 8], apiCall)(data)
+.subscribe(doSomething, handleError);
+
+```
+
+Observables solve a more general class of problem than Promises. This results in some consequential differences.
+
+Promise.prototype.catch() takes an error handling function. It returns a promise for either the return value of the error handler or if the error handler returns a promise, the eventual value of the returned promise.
+
+Observable.prototype.catch() cannot make such assumptions. It is always assumed to return an observable because observables are sequences. The smallest unit therefore would be a sequence of one value.
+
+In order to run only delays when an error occurs, we start with Observable.just(null) no indicate an observable of just one value, null. We map over it to call the api key. This introduces a complication. Our error handler recovers from an Observable of results to an Observale of an Observable of results.
+
+```
+
+[res1, res2, res3] VS [[res1, res2, res3]]
+
+```
+
+Observable.prototype.concatAll() flattens this into an Observable of results. With this returned to catch, on an error, the Observable will fall back to recalling the apiCall function similarly to the promise based version.
+
+
+Lets say apiCall is a wrapper around a websocket event. calling it with some arguemnt returns an observable for some event that is called multiple times. This could be a socket.io event or a mouse movement with some effect applied.
